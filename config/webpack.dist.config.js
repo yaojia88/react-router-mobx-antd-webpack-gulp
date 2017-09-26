@@ -1,33 +1,20 @@
 const webpack = require('webpack');
 const path = require('path');
 
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ProgressBarPlugin = require('progress-bar-webpack-plugin');
-const fs = require('fs');
-
-const pkgPath = path.join(__dirname, '../package.json');
-const pkg = fs.existsSync(pkgPath) ? require(pkgPath) : {};
-let theme = {};
-if (pkg.theme && typeof (pkg.theme) === 'string') {
-  let cfgPath = pkg.theme;
-  if (cfgPath.charAt(0) === '.') {
-    cfgPath = resolve(args.cwd, cfgPath);
-  }
-  const getThemeConfig = require(cfgPath);
-  theme = getThemeConfig();
-} else if (pkg.theme && typeof (pkg.theme) === 'object') {
-  theme = pkg.theme;
-}
+const theme = require('./antd.theme');
 
 const webpackConfig = {
   entry: {
     app: path.join(__dirname, '../src/main.jsx'),
-    vendors: ['react', 'react-dom', 'react-router', 'mobx']
+    vendor: ['react', 'react-dom', 'react-router', 'mobx', 'mobx-react', 'jquery', 'echarts', 'mockjs', 'antd']
   },
   output: {
     path: path.join(__dirname, '../build'),
-    filename: '[name].[hash].js',
+    filename: '[name].[chunkhash].js',
     publicPath: '/'
   },
   cache: false,
@@ -67,8 +54,12 @@ const webpackConfig = {
         ]
       },
       {
-        test: /\.(png|jpg|gif|woff|woff2|eot|ttf|svg)$/,
+        test: /\.(png|jpg|gif)$/,
         use: ['url-loader?limit=1&name=images/[name].[hash:8].[ext]']
+      },
+      {
+        test: /\.(woff|woff2|eot|ttf|svg)$/,
+        use: ['url-loader?limit=1&name=iconfont/[name].[hash:8].[ext]']
       },
       {
         test(file) {
@@ -82,19 +73,21 @@ const webpackConfig = {
     ]
   },
   plugins: [
+    new BundleAnalyzerPlugin(),
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify('production')
       }
     }),
+    new webpack.HashedModuleIdsPlugin(),
     new webpack.optimize.CommonsChunkPlugin({
-      name: ['common', 'vendors'],
+      name: ['vendor', 'runtime'],
       minChunks: 2
     }),
     new ExtractTextPlugin({
-      filename: 'styles.[hash].css',
+      filename: 'styles.[contenthash].css',
       disable: false,
-      allChunks: true
+      allChunks: false
     }),
     new webpack.optimize.UglifyJsPlugin({
       compress: {
@@ -128,7 +121,8 @@ const webpackConfig = {
       minify: {
         removeAttributeQuotes: true,
         removeComments: true,
-        removeEmptyAttributes: true
+        removeEmptyAttributes: true,
+        collapseWhitespace: true
       }
     })
   ]

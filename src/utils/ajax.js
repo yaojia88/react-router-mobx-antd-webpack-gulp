@@ -1,16 +1,15 @@
 import modal from 'components/modal/modal';
 import 'util/mockdata';
+import ErrorCode from './errorcode';
 
 export default class AJAX {
   static localData = require('util/localdata');
-  static config = require('util/config.json');
-
-  static isDebug() {
-    return true;
-  }
 
   static getEnvPrefix() {
-    return AJAX.config[AJAX.config.current];
+    if (window.isDebug) {
+      return '';
+    }
+    return window.apiUrl;
   }
 
   static fetch(fetchObj) {
@@ -31,7 +30,7 @@ export default class AJAX {
       });
     }
 
-    if (AJAX.isDebug()) {
+    if (window.isDebug) {
       setTimeout(() => {
         if (loadingFlag) {
           modal.closeModel();
@@ -40,10 +39,13 @@ export default class AJAX {
         // console.log('localData', localData);
         if (localData.code === 0) {
           successFn(localData);
-        } else if (errorFn) {
-          errorFn(localData);
         } else {
-          AJAX.modalError(localData);// TODO ajax错误统一处理
+          const errorMsg = ErrorCode(localData.code) || '服务器异常,请联系运维人员!';
+          if (errorFn) {
+            errorFn(errorMsg);
+          } else {
+            AJAX.modalError(errorMsg);// ajax错误统一处理
+          }
         }
       }, 500);
       return;
@@ -66,16 +68,25 @@ export default class AJAX {
         'Content-Type': 'application/json'
       },
       dataType: 'json',
-      traditional: true,
-      xhrFields: {
-        withCredentials: false
-      },
+      // traditional: true,
+      // xhrFields: {
+      //   withCredentials: false
+      // },
       crossDomain: true,
       success(result) {
         if (loadingFlag) {
           modal.closeModel();
         }
-        successFn(result);
+        if (result.code === 0) {
+          successFn(result);
+        } else {
+          const errorMsg = ErrorCode(result.code) || '服务器异常,请联系运维人员!';
+          if (errorFn) {
+            errorFn(errorMsg);
+          } else {
+            AJAX.modalError(errorMsg);
+          }
+        }
       },
       error(...args) {
         if (errorFn) {
@@ -91,10 +102,10 @@ export default class AJAX {
     return obj !== null;
   }
 
-  static modalError(data) {
+  static modalError(message) {
     return modal.showModel({
       type: 'error',
-      message: data.message
+      errorMessage: message
     });
   }
 }
